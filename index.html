@@ -1,0 +1,209 @@
+<script src='./jquery-1.7.2.js'></script>
+<script src='./raphael.js'></script>
+<style>
+  #field {
+    width: 800px;
+    height: 800px;
+    background: url(./grass.jpg);
+    margin: 0 auto;
+  }
+  #play_call {
+    width: 800px;
+    margin: 0 auto;
+  }
+</style>
+
+<form id='play_call'>
+  <fieldset>
+    <legend> Create the play call</legend>
+    <table>
+      <tr>
+        <th> Left WR </th>
+        <th> Center </th>
+        <th> Right WR </th>
+        <th> QB </th>
+        <th> RB </th>
+        <th> </th>
+      </tr>
+      <tr>
+        <td>
+          <select name='wrl'>
+            <option value='1_fly'>1 (fly)</option>
+            <option value='2_slant_r'>2 (slant)</option>
+            <option value='3_square_r' >3 (square in)</option>
+            <option value='4_hook'>4 (hook)</option>
+          </select>
+        </td>
+        <td>
+          <select name='center'>
+            <option value='1_fly'>1 (fly)</option>
+            <option value='2_slant'>2 (slant)</option>
+            <option value='3_square' >3 (square in)</option>
+            <option value='4_hook'>4 (hook)</option>
+          </select>
+        </td>
+        <td>
+          <select name='wrr'>
+            <option value='1_fly'>1 (fly)</option>
+            <option value='2_slant_l'>2 (slant)</option>
+            <option value='3_square_l' >3 (square in)</option>
+            <option value='4_hook'>4 (hook)</option>
+          </select>
+        </td>
+        <td>
+          <select name='qb'>
+            <option value='run'> Run </option>
+            <option value='pass'> Pass (Play Action)</option>
+            <option value='reverse'> Reverse </option>
+          </select>
+        </td>
+        <td>
+          <select name='rb_play'>
+            <option value='dive'>Dive</option>
+            <option value='counter'>Counter</option>
+          </select>
+          <select name='rb_dir'>
+            <option value='l'>Left</option>
+            <option value='r'>Right</option>
+          </select>
+        </td>
+        <td>
+          <input type='submit' value='Run This Play'></input>
+        </td>
+      </tr>
+    </table>
+  </fieldset>
+</form>
+<h2 style='text-align: center'>
+</h2>
+<div id='field'>
+</div>
+
+<script>
+  String.prototype.titleize = function() {
+    res = new Array();
+    var parts = this.split(" ");
+    for(var i =0; i< parts.length; i+= 1) {
+      var part = parts[i];
+      res.push(part.capitalize());
+    }
+    return res.join(" ");
+  }
+  String.prototype.capitalize = function(){
+    if(this.length == 0) return this;
+    return this[0].toUpperCase() + this.substr(1);
+  }
+
+
+  $.fn.serializeObject = function()
+  {
+      var o = {};
+      var a = this.serializeArray();
+      $.each(a, function() {
+          if (o[this.name] !== undefined) {
+              if (!o[this.name].push) {
+                  o[this.name] = [o[this.name]];
+              }
+              o[this.name].push(this.value || '');
+          } else {
+              o[this.name] = this.value || '';
+          }
+      });
+      return o;
+  };
+
+  var $field = $('#field');
+  var paper = Raphael($field.offset().left, $field.offset().top, $field.height(), $field.width());
+
+  var routes = {
+    '1_fly':"l0,-300",
+    '1_fly_l':"l0,-300",
+    '1_fly_r':"l0,-300",
+    '2_slant_l':"l-200,-200",
+    '2_slant_r':"l200,-200",
+    '3_square_l':"l0,-200l-200,0",
+    '3_square_r':"l0,-200l200,0",
+    '4_hook':"l0,-150l15,0l0,15",
+    dive_r:"l150,-300",
+    dive_l:"l-150,-300",
+    counter_r:"l-40,-40l50,0l150,-300",
+    counter_l:"l40,-40l-50,0l-150,-300",
+    reverse_r:"l20,100l600,0",
+    reverse_l:"l-20,100l-600,0"
+  };
+
+  function create_players() {
+    paper.clear();
+
+    var players = {
+      wrl: paper.circle(60, 400, 20).attr('fill', '#f80012').attr('stroke', "#fff").attr('stroke-width', '5px'),
+      center: paper.circle(400,400, 20).attr('fill', '#f80012').attr('stroke', "#fff").attr('stroke-width', '5px'),
+      wrr: paper.circle(740, 400, 20).attr('fill', '#f80012').attr('stroke', "#fff").attr('stroke-width', '5px'),
+      qb: paper.circle(400, 470, 20).attr('fill', '#0c5aa6').attr('stroke', "#fff").attr('stroke-width', '5px'),
+      rb: paper.circle(400, 580, 20).attr('fill', '#e9fb00').attr('stroke', "#fff").attr('stroke-width', '5px'),
+      ball: paper.ellipse(400, 360, 5, 10).attr('fill', '#a63800').attr('stroke', "#bf6030").attr('stroke-width', '2px')
+    };
+    return players;
+  };
+
+  create_players();
+  function draw_route( element, path, color) {
+    var route = "M"+element.attr('cx')+","+element.attr('cy') + path;
+
+    paper.path(route).attr({
+      'stroke' : color,
+      'stroke-width' : '5px'
+    });
+  };
+
+  $("#play_call").on('submit', function(e) {
+    e.preventDefault();
+    var players = create_players();
+    var play = $("#play_call").serializeObject();
+    var colors = {
+      wrl: "#fff",
+      center: "#fff",
+      wrr: "#fff",
+      rb: "#fff"
+    };
+
+    // Who is getting the ball?
+    if (play.qb === 'run') {
+      colors.rb = "#00dd00";
+    } else if (play.qb === 'pass') {
+      colors.wrl = colors.center = colors.wrr =  "#00dd00";
+    } else {
+      if (play.rb_dir === 'l') {
+        colors.wrl = "#00dd00";
+      } else {
+        colors.wrr =  "#00dd00";
+      }
+    }
+
+    if (play.qb === 'reverse') {
+      if (play.rb_dir === 'l') {
+        draw_route(players.wrl, routes.reverse_r, colors.wrl);
+        draw_route(players.center, routes[play.center + "_" + (play.rb_dir === 'r' ? 'l' : 'r')], colors.center);
+        draw_route(players.wrr, routes[play.wrr], colors.wrr);
+      } else {
+        draw_route(players.wrl, routes[play.wrl], colors.wrl);
+        draw_route(players.center, routes[play.center + "_" + (play.rb_dir === 'r' ? 'l' : 'r')], colors.center);
+        draw_route(players.wrr, routes.reverse_l, colors.wrr);
+      }
+    } else {
+      draw_route(players.wrl, routes[play.wrl], colors.wrl);
+      draw_route(players.center, routes[play.center + "_" + (play.rb_dir === 'r' ? 'l' : 'r')], colors.center);
+      draw_route(players.wrr, routes[play.wrr], colors.wrr);
+    }
+
+    draw_route(players.rb,  routes[play.rb_play + '_' + play.rb_dir], colors.rb);
+
+    // If it's a play action - then put an X by the RB
+    // If it's a pass, put the ball there.
+
+    $("h2").html(parseInt(play.wrl)+""+parseInt(play.center)+""+parseInt(play.wrr))
+      .append(play.qb.titleize())
+      .append(" " + play.rb_play.titleize())
+      .append(" " + play.rb_dir.titleize());
+  });
+</script>
